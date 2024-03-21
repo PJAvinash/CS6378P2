@@ -1,6 +1,8 @@
 #include <vector>
 #include <cstring> 
 #include <stdexcept>
+#include "serialization.h"
+
 template<typename T1> 
 std::vector<unsigned char> tobytes(const T1 &data){
     std::vector<unsigned char> v;

@@ -48,6 +48,7 @@ static int sendMessage(const std::vector<unsigned char> &bytes, const Node &dest
     if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
     {
         perror("Error connecting");
+        printf("host: %s port: %d",destination.hostname.c_str(),destination.port);
         close(client);
         return -1;
     }
@@ -100,7 +101,7 @@ static void listenthread(int port, std::queue< std::vector<unsigned char> > &mes
         return;
     }
 
-    if (listen(listenSocket, 5) < 0)
+    if (listen(listenSocket, 10000) < 0)
     {
         perror("Error listening");
         close(listenSocket);
@@ -134,6 +135,8 @@ public:
         pthread_mutex_init(&mutex, nullptr);
         this->self = self;
         sem_init(&new_messages, 0, 0);
+        listenMessages();
+
     }
     void listenMessages()
     {
@@ -147,12 +150,14 @@ public:
         pthread_mutex_lock(&this->mutex);
         while (!this->messages.empty())
         {
-            sem_wait(&(this->new_messages));
             std::vector<unsigned char> element = this->messages.front();
             this->messages.pop();
             newmessages.push_back(element);
+            sem_wait(&(this->new_messages));
+             std::cout << "inside while" << std::endl;
         }
         pthread_mutex_unlock(&this->mutex);
+        std::cout << "new messages size" << newmessages.size() << std::endl;
         return newmessages;
     }
 };
