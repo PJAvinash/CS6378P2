@@ -22,7 +22,7 @@ echo ${updated_dir}
 
 # Compile the Java program in the parent directory
 cd ..
-g++ -std=c++14 -stdlib=libc++ io.cpp main.cpp serialization.cpp algorithm.cpp -o totalorder
+make
 
 #connect to all nodes using ssh.
 for remotehost in "${hostname_array[@]}"
