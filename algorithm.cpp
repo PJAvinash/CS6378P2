@@ -52,22 +52,31 @@ public:
 
     void masterbroadcastthread()
     {
-        std::cout << "inside master broadcast uid::"<<master.uid << std::endl;
+        std::cout << "inside master broadcast uid::" << master.uid << std::endl;
         while (true)
         {
             std::vector<std::vector<unsigned char>> newmessages = this->ioobject->getMessages();
-            //std::cout << ("after getMessages:" + newmessages.size()) << std::endl;
-            for (int i = 0; i < newmessages.size(); i++)
+            // std::cout << ("after getMessages:" + newmessages.size()) << std::endl;
+            if (newmessages.size() > 0)
             {
-                Message m = frombytes<Message>(newmessages[i]);
-                //std::cout << ("message from "+ m.from) <<std::endl;
-                updaterequests.push(m);
+                pthread_mutex_lock(&mastermutex);
+                for (int i = 0; i < newmessages.size(); i++)
+                {
+                    Message m = frombytes<Message>(newmessages[i]);
+                    // std::cout << ("message from "+ m.from) <<std::endl;
+                    updaterequests.push(m);
+                }
+                while (!updaterequests.empty())
+                {
+                    Message m = updaterequests.front();
+                    this->broadcast(m);
+                    updaterequests.pop();
+                }
+                pthread_mutex_unlock(&mastermutex);
             }
-            while(!updaterequests.empty())
+            else
             {
-                Message m = updaterequests.front();
-                this->broadcast(m);
-                updaterequests.pop();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
     }
@@ -76,11 +85,14 @@ public:
     {
         if (this->isMaster)
         {
+            pthread_mutex_lock(&mastermutex);
             updaterequests.push(m);
+            pthread_mutex_unlock(&mastermutex);
         }
         else
         {
             sendMessage(tobytes<Message>(m), master);
+            std::cout << "sending from " << m.from << std::endl;
         }
     }
     int uid()
@@ -98,53 +110,94 @@ public:
         return rv;
     }
 };
+
+
 class ReplicatedKVS
 {
 private:
     std::map<std::string, KVSvalue> kvmap;
-    Network &network;
+    Network *network;
+    sem_t new_messages;
+    pthread_mutex_t mutex;
 
 public:
-    ReplicatedKVS(Network &network) : network(network)
+    ReplicatedKVS(Network *network) : network(network)
     {
+        sem_init(&new_messages, 0, 0);
+        pthread_mutex_init(&mutex, nullptr);
         std::thread t(&ReplicatedKVS::datasyncthread, this);
         t.detach();
     }
 
+    ~ReplicatedKVS()
+    {
+        sem_destroy(&new_messages);
+        pthread_mutex_destroy(&mutex);
+    }
+
     KVSvalue get(std::string &key)
     {
+        pthread_mutex_lock(&mutex);
         std::map<std::string, KVSvalue>::iterator it = kvmap.find(key);
+        pthread_mutex_unlock(&mutex);
+        
         if (it == kvmap.end())
         {
             KVSvalue kv = {"*", false};
             return kv;
         }
-        while(!it->second.valid){
-           std::this_thread::sleep_for(std::chrono::milliseconds(1));
-           it = kvmap.find(key);
+
+        while (!it->second.valid)
+        {
+            sem_wait(&new_messages);
+            pthread_mutex_lock(&mutex);
+            it = kvmap.find(key);
+            pthread_mutex_unlock(&mutex);
+            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+        
+        std::cout << "get " << std::endl;
         return it->second;
     }
 
     void set(std::string &key, std::string &value)
     {
         KVSvalue newval = {value, false};
+        pthread_mutex_lock(&mutex);
         this->kvmap[key] = newval;
-        Message m = {this->network.uid(), key, value};
-        this->network.updatemaster(m);
-        std::cout << ("message sent"+m.value) <<std::endl;
+        pthread_mutex_unlock(&mutex);
+
+        Message m = {this->network->uid(), key, value};
+        this->network->updatemaster(m);
+        std::cout << ("message sent" + m.value) << std::endl;
     }
+
     void datasyncthread()
     {
         while (true)
         {
-            std::vector<Message> newupdates = this->network.getupdates();
-            std::cout <<"datasyncthread"<< newupdates.size()<< std::endl; 
-            for (int i = 0; i < newupdates.size(); i++)
+            std::vector<Message> newupdates = this->network->getupdates();
+            // std::cout << "datasyncthread" << newupdates.size() << std::endl;
+            if (newupdates.size() > 0)
             {
-                KVSvalue value = {newupdates[i].value, true};
-                this->kvmap[newupdates[i].key] = value;
+                for (int i = 0; i < newupdates.size(); i++)
+                {
+                    KVSvalue value = {newupdates[i].value, true};
+                    pthread_mutex_lock(&mutex);
+                    this->kvmap[newupdates[i].key] = value;
+                    pthread_mutex_unlock(&mutex);
+                    sem_post(&new_messages);
+                }
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
+    }
+
+    int uid()
+    {
+        return this->network->uid();
     }
 };
