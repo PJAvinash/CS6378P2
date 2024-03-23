@@ -1,203 +1,234 @@
-#include <string>
 #include <map>
-#include "io.cpp"
-#include "semaphore.h"
+#include <queue>
+#include <thread>
+#include <iostream>
+#include "io.h"
 #include "dsstructs.h"
 #include "serialization.cpp"
-#include <chrono>
 
-class Network
+//                get                      set                                listen
+// Master     wait&reply   set_invalid->enque->set_valid-> broadcast    enque->set_valid-> broadcast
+// slave      wait&reply   set_invalid->sendMessage to master           enque->set_valid
+
+template <typename T1, typename T2>
+class ReplicatedKVS
 {
-private:
-    struct Node master;
-    struct Node self;
-    IO *ioobject;
-    bool isMaster;
-    std::vector<Node> nodes;
-    std::queue<Message> updaterequests;
-    pthread_mutex_t mastermutex;
-    sem_t new_messages;
+public:
+    Node localnode;
+    Node masternode;
+    std::vector<Node> allnodes;
+    std::map<T1, KVSvalue<T2>> kvmap;
+
+    pthread_mutex_t keymutex;
+    pthread_mutex_t messagebuffermutex;
+    std::queue<std::vector<unsigned char>> inmessages;
+    bool is_master;
 
 public:
-    Network(const Node &self, const Node &master, const std::vector<Node> &nodes)
+    ReplicatedKVS(const Node &localnode, const Node &masternode, const std::vector<Node> &allnodes)
     {
-        this->self = self;
-        this->master = master;
-        this->nodes = nodes;
-        this->ioobject = new IO(self);
-        pthread_mutex_init(&mastermutex, nullptr);
-        sem_init(&new_messages, 0, 0);
-        if (self == master)
+        this->localnode = localnode;
+        this->masternode = masternode;
+        this->allnodes = allnodes;
+        this->is_master = (masternode == localnode);
+        pthread_mutex_init(&keymutex, nullptr);
+        pthread_mutex_init(&messagebuffermutex, nullptr);
+        this->listen();
+    }
+
+    void set(const T1 &key, const T2 &value)
+    {
+        if (this->is_master)
         {
-            this->isMaster = true;
-            std::thread t(&Network::masterbroadcastthread, this);
+            master_set(this, key, value);
+        }
+        else
+        {
+            slave_set(this, key, value);
+        }
+    }
+
+    typename std::map<T1, KVSvalue<T2>>::iterator find(const T1 &key)
+    {
+        typename std::map<T1, KVSvalue<T2>>::iterator it = kvmap.find(key);
+        return it;
+    }
+
+    T2 get(const T1 &key)
+    {
+        typename std::map<T1, KVSvalue<T2>>::iterator it;
+        while (true)
+        {
+            pthread_mutex_lock(&this->keymutex);
+            it = kvmap.find(key);
+            pthread_mutex_unlock(&this->keymutex);
+            if (it == kvmap.end())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                it = kvmap.find(key);
+                if (it == kvmap.end()){
+                    throw std::runtime_error("Key not found");
+                }  
+            }
+            if (it->second.valid.load())
+            {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return it->second.value;
+    }
+
+    void listen()
+    {
+        if (this->is_master)
+        {
+            auto master_listen_lambda = [this](const std::vector<unsigned char> &newmessagebytes)
+            {
+                master_listen(this, newmessagebytes);
+            };
+            std::thread t(listenthread, this->localnode.port, master_listen_lambda);
             t.detach();
         }
         else
         {
-            this->isMaster = false;
+            auto slave_listen_lambda = [this](const std::vector<unsigned char> &newmessagebytes)
+            {
+                slave_listen(this, newmessagebytes);
+            };
+            std::thread t(listenthread, this->localnode.port, slave_listen_lambda);
+            t.detach();
         }
     }
 
-    void broadcast(Message &m)
+    int uid()
     {
-        for (int i = 0; i < this->nodes.size(); i++)
-        {
-            if (!(this->nodes[i] == self))
-            {
-                sendMessage(tobytes(m), this->nodes[i]);
-            }
-        }
+        return this->localnode.uid;
     }
-
-    void masterbroadcastthread()
+    //********************************** common *****************************************/
+    static void set_invalid(ReplicatedKVS<T1, T2> *ref, const T1 &key, const T2 &value)
     {
-        std::cout << "inside master broadcast uid::" << master.uid << std::endl;
-        while (true)
+        pthread_mutex_lock(&ref->keymutex);
+        typename std::map<T1, KVSvalue<T2>>::iterator it = ref->kvmap.find(key);
+        if (it == ref->kvmap.end())
         {
-            std::vector<std::vector<unsigned char>> newmessages = this->ioobject->getMessages();
-            // std::cout << ("after getMessages:" + newmessages.size()) << std::endl;
-            if (newmessages.size() > 0)
-            {
-                pthread_mutex_lock(&mastermutex);
-                for (int i = 0; i < newmessages.size(); i++)
-                {
-                    Message m = frombytes<Message>(newmessages[i]);
-                    // std::cout << ("message from "+ m.from) <<std::endl;
-                    updaterequests.push(m);
-                }
-                while (!updaterequests.empty())
-                {
-                    Message m = updaterequests.front();
-                    this->broadcast(m);
-                    updaterequests.pop();
-                }
-                pthread_mutex_unlock(&mastermutex);
-            }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
-    }
-
-    void updatemaster(Message &m)
-    {
-        if (this->isMaster)
-        {
-            pthread_mutex_lock(&mastermutex);
-            updaterequests.push(m);
-            pthread_mutex_unlock(&mastermutex);
+            KVSvalue<T2> newval;
+            newval.value = value;
+            newval.valid.store(false);
+            ref->kvmap[key] = newval;
         }
         else
         {
-            sendMessage(tobytes<Message>(m), master);
-            std::cout << "sending from " << m.from << std::endl;
+            it->second.value = value;
+            it->second.valid.store(false);
         }
+        pthread_mutex_unlock(&ref->keymutex);
     }
-    int uid()
+    static void set_valid(ReplicatedKVS<T1, T2> *ref, const T1 &key, const T2 &value)
     {
-        return this->self.uid;
-    }
-    std::vector<Message> getupdates()
-    {
-        std::vector<std::vector<unsigned char>> newmessages = this->ioobject->getMessages();
-        std::vector<Message> rv(newmessages.size());
-        for (int i = 0; i < newmessages.size(); i++)
+        pthread_mutex_lock(&ref->keymutex);
+        typename std::map<T1, KVSvalue<T2>>::iterator it = ref->kvmap.find(key);
+        if (it == ref->kvmap.end())
         {
-            rv.push_back(frombytes<Message>(newmessages[i]));
+            KVSvalue<T2> newval;
+            newval.value = value;
+            newval.valid.store(true);
+            ref->kvmap[key] = newval;
         }
-        return rv;
-    }
-};
-
-
-class ReplicatedKVS
-{
-private:
-    std::map<std::string, KVSvalue> kvmap;
-    Network *network;
-    sem_t new_messages;
-    pthread_mutex_t mutex;
-
-public:
-    ReplicatedKVS(Network *network) : network(network)
-    {
-        sem_init(&new_messages, 0, 0);
-        pthread_mutex_init(&mutex, nullptr);
-        std::thread t(&ReplicatedKVS::datasyncthread, this);
-        t.detach();
-    }
-
-    ~ReplicatedKVS()
-    {
-        sem_destroy(&new_messages);
-        pthread_mutex_destroy(&mutex);
-    }
-
-    KVSvalue get(std::string &key)
-    {
-        pthread_mutex_lock(&mutex);
-        std::map<std::string, KVSvalue>::iterator it = kvmap.find(key);
-        pthread_mutex_unlock(&mutex);
-        
-        if (it == kvmap.end())
+        else
         {
-            KVSvalue kv = {"*", false};
-            return kv;
+            it->second.value = value;
+            it->second.valid.store(true);
         }
+        pthread_mutex_unlock(&ref->keymutex);
 
-        while (!it->second.valid)
-        {
-            sem_wait(&new_messages);
-            pthread_mutex_lock(&mutex);
-            it = kvmap.find(key);
-            pthread_mutex_unlock(&mutex);
-            // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        
-        std::cout << "get " << std::endl;
-        return it->second;
+        std::cout << "k" << key << " " << ref->kvmap[key].value  <<std::endl;
     }
 
-    void set(std::string &key, std::string &value)
+    static void enqueMessagebytes(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
     {
-        KVSvalue newval = {value, false};
-        pthread_mutex_lock(&mutex);
-        this->kvmap[key] = newval;
-        pthread_mutex_unlock(&mutex);
 
-        Message m = {this->network->uid(), key, value};
-        this->network->updatemaster(m);
-        std::cout << ("message sent" + m.value) << std::endl;
+        // // if(ref->uid() == 0){
+        //     Message<T1, T2> m = frombytes< Message<T1, T2> >(messagebytes);
+        //     std::cout<< m.from << " " << m.value <<std::endl;
+        // // }
+        pthread_mutex_lock(&ref->messagebuffermutex);
+        ref->inmessages.push(messagebytes);
+        pthread_mutex_unlock(&ref->messagebuffermutex);
+    }
+    static void enqueMessage(ReplicatedKVS<T1, T2> *ref, const Message<T1, T2> &m)
+    {
+        enqueMessagebytes(ref, tobytes(m));
     }
 
-    void datasyncthread()
+    static void updateKV(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
     {
-        while (true)
+        Message<T1, T2> message = frombytes<Message<T1, T2>>(messagebytes);
+        set_valid(ref, message.key, message.value);
+    }
+
+    static void broadcast(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &m)
+    {
+        for (int i = 0; i < ref->allnodes.size(); i++)
         {
-            std::vector<Message> newupdates = this->network->getupdates();
-            // std::cout << "datasyncthread" << newupdates.size() << std::endl;
-            if (newupdates.size() > 0)
+            if (!(ref->allnodes[i] == ref->localnode))
             {
-                for (int i = 0; i < newupdates.size(); i++)
-                {
-                    KVSvalue value = {newupdates[i].value, true};
-                    pthread_mutex_lock(&mutex);
-                    this->kvmap[newupdates[i].key] = value;
-                    pthread_mutex_unlock(&mutex);
-                    sem_post(&new_messages);
-                }
-            }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                sendMessage(m, ref->allnodes[i]);
             }
         }
     }
-
-    int uid()
+    static std::vector<std::vector<unsigned char>> deque_andset_updates(ReplicatedKVS<T1, T2> *ref)
     {
-        return this->network->uid();
+        std::vector<std::vector<unsigned char>> removedmessages;
+        pthread_mutex_lock(&ref->messagebuffermutex);
+        while (!ref->inmessages.empty())
+        {
+            std::vector<unsigned char> element = ref->inmessages.front();
+            updateKV(ref, element);
+            ref->inmessages.pop();
+            removedmessages.push_back(element);
+        }
+        pthread_mutex_unlock(&ref->messagebuffermutex);
+        return removedmessages;
+    }
+    //**********************************   Master   **************************************/
+
+    static void master_set(ReplicatedKVS<T1, T2> *ref, const T1 &key, const T2 &value)
+    {
+        set_invalid(ref, key, value);
+        Message<T1, T2> m = {ref->uid(), key, value};
+        enqueMessage(ref, m);
+        std::vector<std::vector<unsigned char>> removedmessages = deque_andset_updates(ref);
+        for (int i = 0; i < removedmessages.size(); i++)
+        {
+            broadcast(ref, removedmessages[i]);
+        }
+    }
+    static void master_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
+    {
+        // Message <T1,T2> m = frombytes < Message <T1,T2> > (newmessagebytes);
+        // std::cout << "master_listen" << m.from << std::endl;
+        enqueMessagebytes(ref, newmessagebytes);
+        std::vector<std::vector<unsigned char>> removedmessages = deque_andset_updates(ref);
+        for (int i = 0; i < removedmessages.size(); i++)
+        {
+            broadcast(ref, removedmessages[i]);
+        }
+    }
+
+    //**********************************   Slave   ************************************** /
+
+    static void slave_set(ReplicatedKVS<T1, T2> *ref, const T1 &key, const T2 &value)
+    {
+        set_invalid(ref, key, value);
+        Message<T1, T2> m = {ref->uid(), key, value};
+        sendMessage(tobytes(m), ref->masternode);
+    }
+    static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
+    {
+        // Message <T1,T2> m = frombytes < Message <T1,T2> > (newmessagebytes);
+        // std::cout << "slave_listen" << m.from << std::endl;
+        enqueMessagebytes(ref, newmessagebytes);
+        std::vector<std::vector<unsigned char>> removedmessages = deque_andset_updates(ref);
     }
 };
