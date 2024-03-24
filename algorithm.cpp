@@ -226,6 +226,7 @@ public:
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
         sendMessage(tobytes(m), ref->masternode);
+        std::cout << "sent" << std::endl;
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {

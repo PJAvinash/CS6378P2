@@ -2,6 +2,7 @@
 #include <cstring>
 #include <stdexcept>
 #include "serialization.h"
+#include <iostream>
 
 template <typename T1>
 std::vector<unsigned char> tobytes(const T1 &data)
@@ -9,6 +10,7 @@ std::vector<unsigned char> tobytes(const T1 &data)
     std::vector<unsigned char> v;
     const unsigned char *ptr = reinterpret_cast<const unsigned char *>(&data);
     v.insert(v.end(), ptr, ptr + sizeof(data));
+    std::cout << " serialized " <<std::endl;
     return v;
 }
 template <typename T1>
