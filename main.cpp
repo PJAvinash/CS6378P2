@@ -46,6 +46,7 @@ void test(const std::vector<Node> &nodes)
         }
     }
     int num_nodes = replicatedKVS.size();
+    std::cout <<"num_nodes: " <<num_nodes <<"\n";
     int num_keys = 200;
     for (int i = 0; i < num_keys; i++)
     {
