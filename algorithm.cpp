@@ -120,12 +120,14 @@ public:
     {
         pthread_mutex_lock(&ref->keymutex);
         typename std::map<T1, KVSvalue<T2> >::iterator it = ref->kvmap.find(key);
+        std::cout << key << std::endl;
         if (it == ref->kvmap.end())
         {
             KVSvalue<T2> newval;
             newval.value = value;
             newval.valid.store(false);
             ref->kvmap[key] = newval;
+            std::cout << " insert : "<< key << std::endl;
         }
         else
         {
