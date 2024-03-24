@@ -7,6 +7,11 @@ struct Node
     int uid;
     std::string hostname;
     int port;
+    Node(int uid, std::string hostname,int port){
+        this->uid = uid;
+        this->hostname = hostname;
+        this->port = port;
+    }
     bool operator==(const Node& other) const
     {
         return (uid == other.uid) && (hostname == other.hostname) && (port == other.port);

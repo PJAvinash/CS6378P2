@@ -13,15 +13,14 @@
 template <typename T1, typename T2>
 class ReplicatedKVS
 {
-public:
+private:
+    std::queue<std::vector<unsigned char> > inmessages;
     Node localnode;
     Node masternode;
     std::vector<Node> allnodes;
-    std::map< T1, KVSvalue<T2> > kvmap;
-
+    std::map<T1, KVSvalue<T2> > kvmap;
     pthread_mutex_t keymutex;
     pthread_mutex_t messagebuffermutex;
-    std::queue< std::vector<unsigned char> > inmessages;
     bool is_master;
 
 public:
@@ -100,6 +99,18 @@ public:
         }
     }
 
+    bool keyexists(const T1 &key){
+        return (this->kvmap.find(key) != this->kvmap.end());
+    }
+
+    std:: vector <T1> getkeys(){
+        std:: vector <T1> keys;
+        for(typename std::map<T1, KVSvalue<T2> >::iterator it = this->kvmap.begin(); it != this->kvmap.end(); it++){
+            keys.push_back(it->first);
+        }
+        return keys;
+    }
+
     int uid()
     {
         return this->localnode.uid;
@@ -169,7 +180,7 @@ public:
             }
         }
     }
-    static std::vector<std::vector<unsigned char>> deque_andset_updates(ReplicatedKVS<T1, T2> *ref)
+    static std::vector<std::vector<unsigned char> > deque_andset_updates(ReplicatedKVS<T1, T2> *ref)
     {
         std::vector<std::vector<unsigned char> > removedmessages;
         pthread_mutex_lock(&ref->messagebuffermutex);

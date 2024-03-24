@@ -60,7 +60,6 @@ void test(const std::vector<Node> &nodes)
         for (int r = 0; r < num_nodes; r++)
         {
             int localcopy = replicatedKVS[r]->get(i);
-            // std::cout << localcopy << " ";
             s.insert(localcopy);
         }
         if (s.size() > 1)
@@ -69,7 +68,17 @@ void test(const std::vector<Node> &nodes)
             mismatches++;
         }
     }
+
+    for (int i = 0; i < replicatedKVS.size(); i++)
+    {
+        std::vector <int> keys = replicatedKVS[i]->getkeys();
+        for(int k:keys){
+            std::cout << "k: " <<k <<" v: "<< replicatedKVS[i]->get(k) << "\n";
+        }
+    }
     printf("Number mismatches for %d keys: %d\n", num_keys, mismatches);
+
+
 }
 
 std::vector<Node> readNodesFromFile(const std::string &filename)
@@ -99,7 +108,7 @@ std::vector<Node> readNodesFromFile(const std::string &filename)
             std::cerr << "Error: Invalid line format in file " << filename << std::endl;
             continue;
         }
-        nodes.push_back(Node{uid, hostname, port});
+        nodes.push_back(Node(uid, hostname, port));
     }
 
     file.close();

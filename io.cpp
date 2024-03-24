@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include "dsstructs.h"
 #include "serialization.h"
+#include <functional>
 #include "io.h"
 
 std::string getIPV4(const std::string &hostname)
