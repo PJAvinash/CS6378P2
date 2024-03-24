@@ -29,6 +29,7 @@ std::string getIPV4(const std::string &hostname)
 int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination)
 {
     int client = socket(AF_INET, SOCK_STREAM, 0);
+    printf("32");
     if (client < 0)
     {
         perror("Error creating socket");
@@ -37,13 +38,14 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
     struct sockaddr_in destAddr;
     destAddr.sin_family = AF_INET;
     destAddr.sin_port = htons(destination.port);
+    printf("41");
     if (inet_pton(AF_INET, getIPV4(destination.hostname).c_str(), &destAddr.sin_addr) <= 0)
     {
         perror("Invalid address");
         close(client);
         return -1;
     }
-
+    printf("48");
     if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
     {
         perror("Error connecting");
@@ -51,14 +53,14 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
         close(client);
         return -1;
     }
-
+    printf("56");
     if (send(client, bytes.data(), bytes.size(), 0) < 0)
     {
         perror("Error sending message");
         close(client);
         return -1;
     }
-
+    printf("63");
     close(client);
     return 1;
 }
