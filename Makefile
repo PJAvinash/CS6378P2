@@ -2,7 +2,7 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++11
+CXXFLAGS = -std=c++11 -pthread
 # Add any other flags you need, such as optimization flags (-O2), warning flags (-Wall), etc.
 
 # Source files
