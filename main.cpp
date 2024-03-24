@@ -4,6 +4,7 @@
 #include <random>
 #include <set>
 #include <fstream>
+#include <sstream>
 #include <unistd.h>
 
 template <typename T>
