@@ -26,6 +26,54 @@ std::string getIPV4(const std::string &hostname)
     return inet_ntoa(*addr);
 }
 
+// const std::vector<unsigned char> &bytes, const Node &destination
+int sendMessage2(const std::string &message, const Node &destination)
+{ //,const std::string& hostname, int port) {
+    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == -1)
+    {
+        std::cerr << "Error creating socket" << std::endl;
+        return -1;
+    }
+
+    struct sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(destination.port);
+
+    // Resolve hostname to IP address
+    struct hostent *host = gethostbyname(destination.hostname.c_str());
+    if (host == nullptr)
+    {
+        std::cerr << "Failed to resolve hostname" << std::endl;
+        close(clientSocket);
+        return -1;
+    }
+    memcpy(&serverAddr.sin_addr, host->h_addr, host->h_length);
+
+    // Connect to the server
+    if (connect(clientSocket, reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr)) == -1)
+    {
+        std::cerr << "Error connecting to server" << std::endl;
+        close(clientSocket);
+        return -1;
+    }
+
+    // Send message
+    ssize_t sentBytes = send(clientSocket, message.c_str(), message.length(), 0);
+    if (sentBytes == -1)
+    {
+        std::cerr << "Error sending message" << std::endl;
+        close(clientSocket);
+        return -1;
+    }
+
+    std::cout << "Message sent successfully" << std::endl;
+
+    // Close the socket
+    close(clientSocket);
+    return 0;
+}
+
 int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination)
 {
     int client = socket(AF_INET, SOCK_STREAM, 0);
@@ -43,11 +91,19 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
         close(client);
         return -1;
     }
-
+    
+    struct hostent *host = gethostbyname(destination.hostname.c_str());
+    if (host == nullptr)
+    {
+        perror("Failed to resolve hostname");
+        close(client);
+        return -1;
+    }
+    memcpy(&destAddr.sin_addr, host->h_addr, host->h_length);
     if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
     {
         perror("Error connecting");
-        std::cout<<  getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: "<< destination.port << "\n";
+        std::cout << getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: " << destination.port << "\n";
         close(client);
         return -1;
     }
