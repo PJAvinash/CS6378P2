@@ -22,7 +22,9 @@ std::string getIPV4(const std::string &hostname)
         return "";
     }
     // Assuming the first address is IPv4
+    std::cout<<"getIPV4 before cast" <<"\n";
     struct in_addr *addr = reinterpret_cast<struct in_addr *>(hostInfo->h_addr);
+    std::cout<<"getIPV4 after cast" <<"\n";
     return inet_ntoa(*addr);
 }
 
