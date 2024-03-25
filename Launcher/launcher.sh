@@ -2,6 +2,7 @@
 
 # Read the contents of the configuration file into a variable
 configPath=$1
+numkeys=$2
 config=$(cat "$configPath")
 
 # Remove comment lines and extract node hostnames
@@ -47,6 +48,6 @@ do
     continue
   fi
   echo "Starting main in $remotehost ..."
-  ssh -f $netID@$remotehost "cd \"$updated_dir\" && ./totalorder Launcher/$configPath" &
+  ssh -f $netID@$remotehost "cd \"$updated_dir\" && ./totalorder Launcher/$configPath $numkeys" &
   sleep 1
 done

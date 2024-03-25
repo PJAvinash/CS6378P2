@@ -31,7 +31,7 @@ std::string getHostname()
     }
 }
 
-void test(const std::vector<Node> &nodes)
+void test(const std::vector<Node> &nodes, int num_keys)
 {
     printf("#\n");
     std::vector<ReplicatedKVS<int, int> *> replicatedKVS;
@@ -47,7 +47,6 @@ void test(const std::vector<Node> &nodes)
     }
     int num_nodes = replicatedKVS.size();
     std::cout <<"num_nodes: " <<num_nodes <<"\n";
-    int num_keys = 200;
     for (int i = 0; i < num_keys; i++)
     {
         int replicauid = (i % num_nodes);
@@ -124,9 +123,8 @@ std::vector<Node> readNodesFromFile(const std::string &filename)
 
 int main(int argc, char *argv[])
 {
-    printf("#\n");
     std::vector<Node> nodes = readNodesFromFile(argv[1]);
-    printf("#\n");
-    test(nodes);
+    int num_keys = atoi(argv[2]);
+    test(nodes,num_keys);
     return 0;
 }
