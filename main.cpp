@@ -80,7 +80,7 @@ void test(const std::vector<Node> &nodes)
     {
         std::vector <int> keys = replicatedKVS[i]->getkeys();
         for(int k:keys){
-            std::cout << "k: " <<k <<" v: "<< replicatedKVS[i]->get(k) << "\n";
+            std::cout << "uid: "<< replicatedKVS[i]->uid() <<" k: " <<k <<" v: "<< replicatedKVS[i]->get(k) << "\n";
         }
     }
     printf("Number mismatches for %d keys: %d\n", num_keys, mismatches);
