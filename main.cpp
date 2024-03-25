@@ -51,9 +51,8 @@ void test(const std::vector<Node> &nodes)
     for (int i = 0; i < num_keys; i++)
     {
         int replicauid = (i % num_nodes);
-        printf("before set %d\n",i);
-        replicatedKVS[replicauid]->set(i, i * 2);
-        printf("after set %d\n",i);
+        int uid = replicatedKVS[replicauid]->uid();
+        replicatedKVS[replicauid]->set(i, i *(uid+1));
     }
     printf("#\n");
     for (int i = 0; i < replicatedKVS.size(); i++)

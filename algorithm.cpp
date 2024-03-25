@@ -120,14 +120,12 @@ public:
     {
         pthread_mutex_lock(&ref->keymutex);
         typename std::map<T1, KVSvalue<T2> >::iterator it = ref->kvmap.find(key);
-        std::cout << key << std::endl;
         if (it == ref->kvmap.end())
         {
             KVSvalue<T2> newval;
             newval.value = value;
             newval.valid.store(false);
             ref->kvmap[key] = newval;
-            std::cout << " insert : "<< key << std::endl;
         }
         else
         {
@@ -226,7 +224,6 @@ public:
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
         sendMessage(tobytes(m), ref->masternode);
-        std::cout << "sent" << std::endl;
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
