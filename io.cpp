@@ -43,11 +43,11 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
         close(client);
         return -1;
     }
-    std::cout<<  getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: "<< destination.port << "\n";
+
     if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
     {
         perror("Error connecting");
-        printf("host: %s port: %d", destination.hostname.c_str(), destination.port);
+        std::cout<<  getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: "<< destination.port << "\n";
         close(client);
         return -1;
     }
