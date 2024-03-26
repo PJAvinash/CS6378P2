@@ -58,11 +58,11 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
     {
         if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
         {
-            perror("Error connecting");
-            std::cout << getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: " << destination.port << "\n";
             int sleepDuration = 1 << attempt;
             std::this_thread::sleep_for(std::chrono::milliseconds(sleepDuration));
             if(NUM_ATTEMPTS == (attempt+1)){
+                perror("Error connecting");
+                std::cout << getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: " << destination.port << "\n";
                 close(client);
                 return -1;
             }   
