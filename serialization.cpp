@@ -4,14 +4,13 @@
 #include "serialization.h"
 #include <iostream>
 
-template <typename T1>
-std::vector<unsigned char> tobytes(const T1 &data)
-{
-    std::vector<unsigned char> v;
-    const unsigned char *ptr = reinterpret_cast<const unsigned char *>(&data);
-    v.insert(v.end(), ptr, ptr + sizeof(data));
-    return v;
+template <typename T>
+std::vector<unsigned char> tobytes(const T& data) {
+    std::vector<unsigned char> bytes(sizeof(T));
+    std::memcpy(bytes.data(), &data, sizeof(T));
+    return bytes;
 }
+
 template <typename T1>
 T1 frombytes(const std::vector<unsigned char> &v)
 {
