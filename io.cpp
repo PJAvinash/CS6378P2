@@ -12,6 +12,7 @@
 #include "serialization.h"
 #include <functional>
 #include "io.h"
+#include <chrono>
 
 std::string getIPV4(const std::string &hostname)
 {
@@ -24,54 +25,6 @@ std::string getIPV4(const std::string &hostname)
     // Assuming the first address is IPv4
     struct in_addr *addr = reinterpret_cast<struct in_addr *>(hostInfo->h_addr);
     return inet_ntoa(*addr);
-}
-
-// const std::vector<unsigned char> &bytes, const Node &destination
-int sendMessage2(const std::string &message, const Node &destination)
-{ //,const std::string& hostname, int port) {
-    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == -1)
-    {
-        std::cerr << "Error creating socket" << std::endl;
-        return -1;
-    }
-
-    struct sockaddr_in serverAddr;
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(destination.port);
-
-    // Resolve hostname to IP address
-    struct hostent *host = gethostbyname(destination.hostname.c_str());
-    if (host == nullptr)
-    {
-        std::cerr << "Failed to resolve hostname" << std::endl;
-        close(clientSocket);
-        return -1;
-    }
-    memcpy(&serverAddr.sin_addr, host->h_addr, host->h_length);
-
-    // Connect to the server
-    if (connect(clientSocket, reinterpret_cast<struct sockaddr *>(&serverAddr), sizeof(serverAddr)) == -1)
-    {
-        std::cerr << "Error connecting to server" << std::endl;
-        close(clientSocket);
-        return -1;
-    }
-
-    // Send message
-    ssize_t sentBytes = send(clientSocket, message.c_str(), message.length(), 0);
-    if (sentBytes == -1)
-    {
-        std::cerr << "Error sending message" << std::endl;
-        close(clientSocket);
-        return -1;
-    }
-
-    std::cout << "Message sent successfully" << std::endl;
-
-    // Close the socket
-    close(clientSocket);
-    return 0;
 }
 
 int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination)
@@ -91,7 +44,7 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
         close(client);
         return -1;
     }
-    
+
     struct hostent *host = gethostbyname(destination.hostname.c_str());
     if (host == nullptr)
     {
@@ -100,12 +53,22 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
         return -1;
     }
     memcpy(&destAddr.sin_addr, host->h_addr, host->h_length);
-    if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
+    int NUM_ATTEMPTS = 10;
+    for (int attempt = 0; attempt < NUM_ATTEMPTS; attempt++)
     {
-        perror("Error connecting");
-        std::cout << getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: " << destination.port << "\n";
-        close(client);
-        return -1;
+        if (connect(client, reinterpret_cast<struct sockaddr *>(&destAddr), sizeof(destAddr)) < 0)
+        {
+            perror("Error connecting");
+            std::cout << getIPV4(destination.hostname).c_str() << " destination name : " << destination.hostname << " port: " << destination.port << "\n";
+            int sleepDuration = 1 << attempt;
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleepDuration));
+            if(NUM_ATTEMPTS == (attempt+1)){
+                close(client);
+                return -1;
+            }   
+        }else{
+            break;
+        }
     }
     if (send(client, bytes.data(), bytes.size(), 0) < 0)
     {
