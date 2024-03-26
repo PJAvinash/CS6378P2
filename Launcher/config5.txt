@@ -1,2 +1,0 @@
-0 dc01.utdallas.edu 7001
-1 dc02.utdallas.edu 7002

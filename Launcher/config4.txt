@@ -1,5 +1,2 @@
-# UID Hostname Port
-0 JAYANTHs-MacBook-Pro.local 6001
-1 JAYANTHs-MacBook-Pro.local 6002
-2 JAYANTHs-MacBook-Pro.local 6003
-3 JAYANTHs-MacBook-Pro.local 6004
+0 dc01.utdallas.edu 7001
+1 dc02.utdallas.edu 7002

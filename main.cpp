@@ -35,9 +35,10 @@ void test(const std::vector<Node> &nodes, int num_keys)
 {
     printf("#\n");
     std::vector<ReplicatedKVS<int, int> *> replicatedKVS;
+    std::string host = getHostname() ;
     for (int i = 0; i < nodes.size(); i++)
     {
-        std::cout<<getHostname() <<std::endl;
+        
         if (getHostname() == nodes[i].hostname)
         {
             ReplicatedKVS<int, int> *rkv = new ReplicatedKVS<int, int>(nodes[i], nodes[0], nodes);
@@ -46,7 +47,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
         }
     }
     int num_nodes = replicatedKVS.size();
-    std::cout <<"num_nodes: " <<num_nodes <<"\n";
+    std::cout << host << " num_nodes: " <<num_nodes <<"\n";
     sleep(2);
     for (int i = 0; i < num_keys; i++)
     {
@@ -73,8 +74,8 @@ void test(const std::vector<Node> &nodes, int num_keys)
             }
             catch(const std::exception& e)
             {
-                std::cout<<" Error at i = " << i <<"\n"; 
-                std::cerr << e.what() << '\n';
+                std::cout<< host << " Error at i = " << i <<"\n"; 
+                std::cerr << host << e.what() << '\n';
             }
             
             
@@ -93,7 +94,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
             std::cout << "uid: "<< replicatedKVS[i]->uid() <<" k: " <<k <<" v: "<< replicatedKVS[i]->get(k) << "\n";
         }
     }
-    printf("Number mismatches for %d keys: %d\n", num_keys, mismatches);
+    printf("%s: Number mismatches for %d keys: %d\n",host.c_str(), num_keys, mismatches);
 }
 
 std::vector<Node> readNodesFromFile(const std::string &filename)
