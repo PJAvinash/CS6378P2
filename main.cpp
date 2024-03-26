@@ -66,8 +66,18 @@ void test(const std::vector<Node> &nodes, int num_keys)
         std::set<int> s;
         for (int r = 0; r < num_nodes; r++)
         {
-            int localcopy = replicatedKVS[r]->get(i);
-            s.insert(localcopy);
+            try
+            {
+               int localcopy = replicatedKVS[r]->get(i);
+               s.insert(localcopy);
+            }
+            catch(const std::exception& e)
+            {
+                std::cout<<" Error at i = " << i <<"\n"; 
+                std::cerr << e.what() << '\n';
+            }
+            
+            
         }
         if (s.size() > 1)
         {
@@ -84,8 +94,6 @@ void test(const std::vector<Node> &nodes, int num_keys)
         }
     }
     printf("Number mismatches for %d keys: %d\n", num_keys, mismatches);
-
-
 }
 
 std::vector<Node> readNodesFromFile(const std::string &filename)
