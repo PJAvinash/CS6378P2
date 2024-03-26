@@ -44,7 +44,7 @@ for remotehost in "${hostname_array[@]}"
 do
   # Skip the host machine
   if [[ "$remotehost" == "$host" ]]; then
-    ./totalorder Launcher/$configPath &
+    ./totalorder Launcher/$configPath $numkeys&
     continue
   fi
   echo "Starting main in $remotehost ..."
