@@ -123,8 +123,13 @@ std::vector<Node> readNodesFromFile(const std::string &filename)
 
 int main(int argc, char *argv[])
 {
-    std::vector<Node> nodes = readNodesFromFile(argv[1]);
-    int num_keys = atoi(argv[2]);
-    test(nodes,num_keys);
-    return 0;
+    if (argc == 3)
+    {
+        std::vector<Node> nodes = readNodesFromFile(argv[1]);
+        int num_keys = atoi(argv[2]);
+        test(nodes, num_keys);
+    }else{
+        perror("Invalid number of arguments format:'<executable> <config path> <num_keys>'");
+    }
+    exit(0);
 }
