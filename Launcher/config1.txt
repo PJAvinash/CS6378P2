@@ -1,5 +1,5 @@
 # UID Hostname Port
-0 dc01.utdallas.edu 9999
+0 dc06.utdallas.edu 9999
 1 dc02.utdallas.edu 9999
 2 dc03.utdallas.edu 9999
 3 dc04.utdallas.edu 9999
