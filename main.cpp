@@ -100,6 +100,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
             }
         }
         printf("%s: Number mismatches for %d keys: %d\n", host.c_str(), num_keys, mismatches);
+        sleep(2);
     }
     catch (const std::exception &e)
     {
