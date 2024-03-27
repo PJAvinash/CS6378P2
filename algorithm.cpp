@@ -27,7 +27,7 @@ private:
     std::vector<Node> allnodes;
     std::map<T1, KVSvalue<T2> > kvmap;
     pthread_mutex_t keymutex;
-
+    bool async = false;
     bool is_master;
 
 public:
@@ -39,7 +39,9 @@ public:
         pthread_mutex_init(&outmessagebuffermutex, nullptr);
         sem_init(&outmessagebuffer_semaphore, 0, 0);
         ReplicatedKVS<T1, T2>::listen(this);
-        ReplicatedKVS<T1,T2>::sendupdates(this);
+        if(this->async){
+            ReplicatedKVS<T1,T2>::sendupdates(this);
+        }
     }
 
     void set(const T1 &key, const T2 &value)
@@ -273,8 +275,13 @@ public:
     {
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
-        enqueOutMessage(ref,m);
-        //sendMessage(tobytes(m), ref->masternode);
+        if(ref->async){
+            enqueOutMessage(ref,m);
+        }else{
+            sendMessage(tobytes(m), ref->masternode);
+        }
+        
+       
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
