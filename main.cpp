@@ -64,6 +64,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
     int mismatches = 0;
     for (int i = 0; i < num_keys; i++)
     {
+        printf("key : %d\n",i);
         std::set<int> s;
         for (int r = 0; r < num_nodes; r++)
         {
@@ -97,38 +98,42 @@ void test(const std::vector<Node> &nodes, int num_keys)
     printf("%s: Number mismatches for %d keys: %d\n",host.c_str(), num_keys, mismatches);
 }
 
-std::vector<Node> readNodesFromFile(const std::string &filename)
-{
-    std::vector<Node> nodes;
-    std::ifstream file(filename);
-    if (!file.is_open())
-    {
-        std::cerr << "Error: Unable to open file " << filename << std::endl;
-        return nodes;
+std::vector<Node> readNodesFromFile(const std::string& filename) {
+  std::vector<Node> nodes;
+  std::ifstream file(filename);
+
+  if (!file.is_open()) {
+    throw std::runtime_error("Error: Unable to open file " + filename);
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    // Ignore comments and empty lines
+    if (line.empty() || line[0] == '#') {
+      continue;
     }
 
-    std::string line;
-    while (std::getline(file, line))
-    {
-        // Ignore lines starting with #
-        if (line.empty() || line[0] == '#')
-        {
-            continue;
-        }
-        std::istringstream iss(line);
-        int uid;
-        std::string hostname;
-        int port;
-        if (!(iss >> uid >> hostname >> port))
-        {
-            std::cerr << "Error: Invalid line format in file " << filename << std::endl;
-            continue;
-        }
-        nodes.push_back(Node(uid, hostname, port));
+    std::istringstream iss(line);
+    int uid;
+    std::string hostname;
+    int port;
+
+    // Extract and validate data
+    if (!(iss >> uid >> hostname >> port)) {
+      std::cerr << "Error: Invalid line format in file " << filename << std::endl;
+      continue;
     }
 
-    file.close();
-    return nodes;
+    // Basic port validation (adjust as needed)
+    if (port <= 0 || port > 65535) {
+      std::cerr << "Error: Invalid port number in file " << filename << std::endl;
+      continue;
+    }
+
+    nodes.push_back(Node{uid, hostname, port});
+  }
+  file.close();
+  return nodes;
 }
 
 int main(int argc, char *argv[])
