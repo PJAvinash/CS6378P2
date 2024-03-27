@@ -5,22 +5,29 @@
 #include "io.h"
 #include "dsstructs.h"
 #include "serialization.cpp"
+#include <pthread.h>
+#include <semaphore.h>
 
-//                get                      set                                listen
-// Master     wait&reply   set_invalid->enque->set_valid-> broadcast    enque->set_valid-> broadcast
-// slave      wait&reply   set_invalid->sendMessage to master           enque->set_valid
+//                get                      set                                                 listen
+// Master     wait&reply   set_invalid->enque inmessages ->set_valid-> broadcast -> deque      enque inmessages ->set_valid-> broadcast
+// slave      wait&reply   set_invalid->enque outmessages ->sendMessage to master -> deque     enque inmessages ->set_valid
 
 template <typename T1, typename T2>
 class ReplicatedKVS
 {
 private:
     std::queue<std::vector<unsigned char> > inmessages;
+    pthread_mutex_t inmessagebuffermutex;
+    std::queue<std::vector<unsigned char> > outmessages;
+    pthread_mutex_t outmessagebuffermutex;
+    sem_t outmessagebuffer_semaphore;
+
     Node localnode;
     Node masternode;
     std::vector<Node> allnodes;
     std::map<T1, KVSvalue<T2> > kvmap;
     pthread_mutex_t keymutex;
-    pthread_mutex_t messagebuffermutex;
+
     bool is_master;
 
 public:
@@ -28,8 +35,11 @@ public:
     {
         this->is_master = (this->masternode == this->localnode);
         pthread_mutex_init(&keymutex, nullptr);
-        pthread_mutex_init(&messagebuffermutex, nullptr);
+        pthread_mutex_init(&inmessagebuffermutex, nullptr);
+        pthread_mutex_init(&outmessagebuffermutex, nullptr);
+        sem_init(&outmessagebuffer_semaphore, 0, 0);
         ReplicatedKVS<T1, T2>::listen(this);
+        ReplicatedKVS<T1,T2>::sendupdates(this);
     }
 
     void set(const T1 &key, const T2 &value)
@@ -99,6 +109,35 @@ public:
         }
     }
 
+    static void sendupdatesthread(ReplicatedKVS<T1, T2> *ref)
+    {
+        if (!ref->is_master)
+        {
+            while (true)
+            {
+                sem_wait(&ref->outmessagebuffer_semaphore);
+                sem_post(&ref->outmessagebuffer_semaphore);
+                std::vector<std::vector<unsigned char> > removedmessages;
+                pthread_mutex_lock(&ref->outmessagebuffermutex);
+                while (!ref->outmessages.empty())
+                {
+                    sem_wait(&ref->outmessagebuffer_semaphore);
+                    std::vector<unsigned char> element = ref->outmessages.front();
+                    removedmessages.push_back(element);
+                    ref->outmessages.pop();
+                }
+                pthread_mutex_unlock(&ref->outmessagebuffermutex);
+                for( std::vector<unsigned char> messagebytes :removedmessages){
+                    sendMessage(messagebytes,ref->masternode);
+                }
+            }
+        }
+    }
+    void sendupdates(ReplicatedKVS<T1, T2> *ref){
+        std::thread t(sendupdatesthread, ref);
+        t.detach();
+    }
+
     bool keyexists(const T1 &key){
         return (this->kvmap.find(key) != this->kvmap.end());
     }
@@ -153,15 +192,26 @@ public:
         pthread_mutex_unlock(&ref->keymutex);
     }
 
-    static void enqueMessagebytes(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
+    static void enqueInMessagebytes(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
     {
-        pthread_mutex_lock(&ref->messagebuffermutex);
+        pthread_mutex_lock(&ref->inmessagebuffermutex);
         ref->inmessages.push(messagebytes);
-        pthread_mutex_unlock(&ref->messagebuffermutex);
+        pthread_mutex_unlock(&ref->inmessagebuffermutex);
     }
-    static void enqueMessage(ReplicatedKVS<T1, T2> *ref, const Message<T1, T2> &m)
+    static void enqueInMessage(ReplicatedKVS<T1, T2> *ref, const Message<T1, T2> &m)
     {
-        enqueMessagebytes(ref, tobytes(m));
+        enqueInMessagebytes(ref, tobytes(m));
+    }
+    static void enqueOutMessagebytes(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
+    {
+        pthread_mutex_lock(&ref->outmessagebuffermutex);
+        ref->outmessages.push(messagebytes);
+        pthread_mutex_unlock(&ref->outmessagebuffermutex);
+        sem_post(&ref->outmessagebuffer_semaphore);
+    }
+    static void enqueOutMessage(ReplicatedKVS<T1, T2> *ref, const Message<T1, T2> &m)
+    {
+        enqueOutMessagebytes(ref, tobytes(m));
     }
 
     static void updateKV(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &messagebytes)
@@ -183,7 +233,7 @@ public:
     static std::vector<std::vector<unsigned char> > deque_andset_updates(ReplicatedKVS<T1, T2> *ref)
     {
         std::vector<std::vector<unsigned char> > removedmessages;
-        pthread_mutex_lock(&ref->messagebuffermutex);
+        pthread_mutex_lock(&ref->inmessagebuffermutex);
         while (!ref->inmessages.empty())
         {
             std::vector<unsigned char> element = ref->inmessages.front();
@@ -191,7 +241,7 @@ public:
             ref->inmessages.pop();
             removedmessages.push_back(element);
         }
-        pthread_mutex_unlock(&ref->messagebuffermutex);
+        pthread_mutex_unlock(&ref->inmessagebuffermutex);
         return removedmessages;
     }
     //**********************************   Master   **************************************/
@@ -200,7 +250,7 @@ public:
     {
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
-        enqueMessage(ref, m);
+        enqueInMessage(ref, m);
         std::vector<std::vector<unsigned char> > removedmessages = deque_andset_updates(ref);
         for (int i = 0; i < removedmessages.size(); i++)
         {
@@ -209,7 +259,7 @@ public:
     }
     static void master_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
-        enqueMessagebytes(ref, newmessagebytes);
+        enqueInMessagebytes(ref, newmessagebytes);
         std::vector<std::vector<unsigned char> > removedmessages = deque_andset_updates(ref);
         for (int i = 0; i < removedmessages.size(); i++)
         {
@@ -223,12 +273,13 @@ public:
     {
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
-        sendMessage(tobytes(m), ref->masternode);
+        enqueOutMessage(ref,m);
+        //sendMessage(tobytes(m), ref->masternode);
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
         Message<T1, T2> m = frombytes<Message<T1, T2> >(newmessagebytes);
-        enqueMessagebytes(ref, newmessagebytes);
+        enqueInMessagebytes(ref, newmessagebytes);
         std::vector<std::vector<unsigned char> > removedmessages = deque_andset_updates(ref);
     }
 };
