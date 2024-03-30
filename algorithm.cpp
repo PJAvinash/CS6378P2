@@ -36,7 +36,7 @@ private:
     int listenfd;
     bool is_master;
     std::atomic<int> pendingupdates{0};
-    int MAX_PENDING = 25;
+    int MAX_PENDING = 10;
 
 public:
     ReplicatedKVS(const Node &localnode, const Node &masternode, const std::vector<Node> &allnodes) : localnode(localnode), masternode(masternode), allnodes(allnodes)
@@ -350,7 +350,7 @@ public:
             deque_set_broadcast(ref);
         }
         else{
-            if(ref->pendingupdates.load() >30){
+            if(ref->pendingupdates.load() > ref->MAX_PENDING){
                 send_updates_master(ref);
             }
         }
@@ -376,6 +376,15 @@ public:
         Message<T1, T2> m = {ref->uid(), key, value};
         enqueOutMessage(ref,m);
         //sendMessage(tobytes(m), ref->masternode);
+        if(!ref->async){
+            send_updates_slave(ref);
+        }
+        else{
+            if(ref->pendingupdates.load() > ref->MAX_PENDING){
+                send_updates_slave(ref);
+            }
+        }
+
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
