@@ -58,7 +58,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
             int replicauid = (i % num_nodes);
             int uid = replicatedKVS[replicauid]->uid();
             replicatedKVS[replicauid]->set(i, i * (uid + 1));
-            //std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         printf("#\n");
         for (int i = 0; i < replicatedKVS.size(); i++)
@@ -101,6 +101,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
             }
         }
         printf("%s: Number mismatches for %d keys: %d\n", host.c_str(), num_keys, mismatches);
+        sleep(2);
     }
     catch (const std::exception &e)
     {

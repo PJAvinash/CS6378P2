@@ -374,17 +374,8 @@ public:
     {
         set_invalid(ref, key, value);
         Message<T1, T2> m = {ref->uid(), key, value};
-        //printf("uid:%d, pending updates:%d",ref->uid(),ref->pendingupdates.load());
-        if(!ref->async) {
-            sendMessage(tobytes(m), ref->masternode);
-        }
-        else{
-            enqueOutMessage(ref,m);
-            if(ref->pendingupdates.load() > ref->MAX_PENDING){
-                send_updates_slave(ref);
-            }
-        }
-        
+        enqueOutMessage(ref,m);
+        //sendMessage(tobytes(m), ref->masternode);
     }
     static void slave_listen(ReplicatedKVS<T1, T2> *ref, const std::vector<unsigned char> &newmessagebytes)
     {
