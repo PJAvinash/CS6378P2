@@ -94,6 +94,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
         for (int i = 0; i < replicatedKVS.size(); i++)
         {
             std::vector<int> keys = replicatedKVS[i]->getkeys();
+            //replicatedKVS[i]->stoplistening();
             for (int k : keys)
             {
                 std::cout << "uid: " << replicatedKVS[i]->uid() << " k: " << k << " v: " << replicatedKVS[i]->get(k) << "\n";
@@ -162,6 +163,7 @@ int main(int argc, char *argv[])
     else
     {
         perror("Invalid number of arguments format:'<executable> <config path> <num_keys>'");
+        exit(1);
     }
     exit(0);
 }

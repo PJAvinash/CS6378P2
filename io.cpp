@@ -38,12 +38,12 @@ int sendMessage(const std::vector<unsigned char> &bytes, const Node &destination
     struct sockaddr_in destAddr;
     destAddr.sin_family = AF_INET;
     destAddr.sin_port = htons(destination.port);
-    if (inet_pton(AF_INET, getIPV4(destination.hostname).c_str(), &destAddr.sin_addr) <= 0)
-    {
-        perror("Invalid address");
-        close(client);
-        return -1;
-    }
+    // if (inet_pton(AF_INET, getIPV4(destination.hostname).c_str(), &destAddr.sin_addr) <= 0)
+    // {
+    //     perror("Invalid address");
+    //     close(client);
+    //     return -1;
+    // }
 
     struct hostent *host = gethostbyname(destination.hostname.c_str());
     if (host == nullptr)
@@ -94,7 +94,7 @@ void handleclient(int client, std::function<void(std::vector<unsigned char>)> on
     close(client);
 }
 
-void listenthread(int port, std::function<void(std::vector<unsigned char>)> onMessageEvent)
+void listenthread(int* socketdecsriptor,int port, std::function<void(std::vector<unsigned char>)> onMessageEvent)
 {
     int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (listenSocket < 0)
