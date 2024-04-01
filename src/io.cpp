@@ -113,7 +113,7 @@ void listenthread(int port, std::function<void(std::vector<unsigned char>)> onMe
         return;
     }
 
-    if (listen(listenSocket, 10000) < 0)
+    if (listen(listenSocket, 100000) < 0)
     {
         perror("Error listening");
         close(listenSocket);
