@@ -18,7 +18,7 @@ This project implements a centralized algorithm for achieving total order with a
 
 # Future plans:
 Reduce the delivery latency
-Add support for different message types (CRUD) opetations
+Add support for different message types (CRUD) operations
 Add support for concurrent reads and writes with finegrained synchronization
 Add support for nodes leaving and joining the network
 Add support for node authentication
@@ -29,10 +29,10 @@ make
 (or) g++ -std=c++11 -stdlib=libc++ io.cpp main.cpp serialization.cpp algorithm.cpp -o totalorder
 
 # Execution:
-./totalorder <ConfigurationPath> <Numer of keys>
+./totalorder <ConfigurationPath> <Number of keys>
 
 On a cluster of nodes:
-go to /Launcher in terminal run 'chmod +x launcher.sh && ./launcher.sh <ConfigurationPath> <Numer of keys> ' For cleaning up processes 'chmod +x cleanup.sh && ./cleanup.sh <ConfigurationPath>'
+go to /Launcher in terminal run 'chmod +x launcher.sh && ./launcher.sh <ConfigurationPath> <Number of keys> ' For cleaning up processes 'chmod +x cleanup.sh && ./cleanup.sh <ConfigurationPath>'
 
 # Features
 - 1.supports batch updates to handle TCP/IP connections overhead
@@ -40,12 +40,3 @@ go to /Launcher in terminal run 'chmod +x launcher.sh && ./launcher.sh <Configur
 
 # Contributors
 PJ Avinash
-
-
-
-
-
-
-
-
-
