@@ -1,8 +1,10 @@
+#ifndef _SERIALIZATION_CPP
+#define _SERIALIZATION_CPP
 #include <vector>
 #include <cstring>
 #include <stdexcept>
-#include "serialization.h"
 #include <iostream>
+#include "serialization.h"
 
 template <typename T1>
 std::vector<unsigned char> tobytes(const T1& data) {
@@ -40,7 +42,7 @@ std::vector<T1> bytestovec(const std::vector<unsigned char> &buffer){
     size_t numobjects = buffer.size() / sizeof(T1);
     rv.reserve(numobjects);
     const unsigned char* ptr = buffer.data();
-    for(int i = 0; i< numobjects; i++){
+    for(size_t i = 0; i< numobjects; i++){
         T1 obj;
         std::memcpy(&obj, ptr, sizeof(T1));
         rv.push_back(obj);
@@ -48,4 +50,5 @@ std::vector<T1> bytestovec(const std::vector<unsigned char> &buffer){
     }
     return rv;
 }
+#endif
 

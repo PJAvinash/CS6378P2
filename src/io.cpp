@@ -8,11 +8,9 @@
 #include <iostream>
 #include <netdb.h>
 #include <pthread.h>
-#include "dsstructs.h"
-#include "serialization.h"
 #include <functional>
-#include "io.h"
 #include <chrono>
+#include "lib.h"
 
 std::string getIPV4(const std::string &hostname)
 {
@@ -94,7 +92,7 @@ void handleclient(int client, std::function<void(std::vector<unsigned char>)> on
     close(client);
 }
 
-void listenthread(int* socketdecsriptor,int port, std::function<void(std::vector<unsigned char>)> onMessageEvent)
+void listenthread(int port, std::function<void(std::vector<unsigned char>)> onMessageEvent)
 {
     int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (listenSocket < 0)

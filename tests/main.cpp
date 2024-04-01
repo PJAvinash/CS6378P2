@@ -1,12 +1,10 @@
-#include "dsstructs.h"
-#include "serialization.h"
-#include "algorithm.cpp"
+
 #include <random>
 #include <set>
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
-
+#include "lib.h"
 
 template <typename T>
 void printSet(const std::set<T> &s)
@@ -32,14 +30,14 @@ std::string getHostname()
     }
 }
 
-void test(const std::vector<Node> &nodes, int num_keys)
+void test(const std::vector<Node> &nodes, size_t num_keys)
 {
     try
     {
         printf("#\n");
         std::vector<ReplicatedKVS<int, int> *> replicatedKVS;
         std::string host = getHostname();
-        for (int i = 0; i < nodes.size(); i++)
+        for (size_t i = 0; i < nodes.size(); i++)
         {
 
             if (getHostname() == nodes[i].hostname)
@@ -49,27 +47,27 @@ void test(const std::vector<Node> &nodes, int num_keys)
                 std::cout << rkv->uid() << std::endl;
             }
         }
-        int num_nodes = replicatedKVS.size();
+        size_t num_nodes = replicatedKVS.size();
         std::cout << host << " num_nodes: " << num_nodes << "\n";
         sleep(2);
-        for (int i = 0; i < num_keys; i++)
+        for (size_t i = 0; i < num_keys; i++)
         {
             int replicauid = (i % num_nodes);
             int uid = replicatedKVS[replicauid]->uid();
             replicatedKVS[replicauid]->set(i, i * (uid + 1));
         }
         printf("#\n");
-        for (int i = 0; i < replicatedKVS.size(); i++)
+        for (size_t i = 0; i < replicatedKVS.size(); i++)
         {
             std::cout << replicatedKVS[i]->uid() << std::endl;
         }
         printf("#\n");
         int mismatches = 0;
-        for (int i = 0; i < num_keys; i++)
+        for (size_t i = 0; i < num_keys; i++)
         {
-            printf("key : %d\n", i);
+            printf("key : %d\n", (int)i);
             std::set<int> s;
-            for (int r = 0; r < num_nodes; r++)
+            for (size_t r = 0; r < num_nodes; r++)
             {
                 try
                 {
@@ -89,7 +87,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
             }
         }
         printf("#\n");
-        for (int i = 0; i < replicatedKVS.size(); i++)
+        for (size_t i = 0; i < replicatedKVS.size(); i++)
         {
             std::vector<int> keys = replicatedKVS[i]->getkeys();
             //replicatedKVS[i]->stoplistening();
@@ -98,7 +96,7 @@ void test(const std::vector<Node> &nodes, int num_keys)
                 std::cout << "uid: " << replicatedKVS[i]->uid() << " k: " << k << " v: " << replicatedKVS[i]->get(k) << "\n";
             }
         }
-        printf("%s: Number mismatches for %d keys: %d\n", host.c_str(), num_keys, mismatches);
+        printf("%s: Number mismatches for %d keys: %d\n", host.c_str(), (int)num_keys, mismatches);
         sleep(2);
     }
     catch (const std::exception &e)
@@ -156,7 +154,7 @@ int main(int argc, char *argv[])
     if (argc == 3)
     {
         std::vector<Node> nodes = readNodesFromFile(argv[1]);
-        int num_keys = atoi(argv[2]);
+        size_t num_keys = (size_t)atoi(argv[2]);
         test(nodes, num_keys);
     }
     else

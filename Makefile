@@ -2,29 +2,31 @@
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++11 -pthread
-# Add any other flags you need, such as optimization flags (-O2), warning flags (-Wall), etc.
+CXXFLAGS = -std=c++11 -Wall -Werror
+
+# Include directories
+INCLUDES = -Iinclude
 
 # Source files
-SRCS = io.cpp main.cpp serialization.cpp algorithm.cpp
+SOURCES = tests/main.cpp src/algorithm.cpp src/io.cpp src/serialization.cpp
 
 # Object files
-OBJS = $(SRCS:.cpp=.o)
+OBJECTS = $(SOURCES:.cpp=.o)
 
 # Executable name
-EXEC = totalorder
+EXECUTABLE = totalorder
 
-# Build rule
-$(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+# Default rule to build the executable
+all: $(EXECUTABLE)
 
-# Rule to compile .cpp files into .o object files
+# Rule to compile source files into object files
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
-# Clean rule
+# Rule to link object files into the executable
+$(EXECUTABLE): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@
+
+# Clean rule to remove object files and the executable
 clean:
-	rm -f $(EXEC) $(OBJS)
-
-# Phony target to avoid conflicts with filenames
-.PHONY: clean
+	rm -f $(OBJECTS) $(EXECUTABLE)

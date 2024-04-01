@@ -2,6 +2,7 @@
 #define DSSTRUCTS_H
 #include <string>
 #include <atomic>
+
 struct Node
 {
     int uid;
