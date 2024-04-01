@@ -36,7 +36,7 @@ go to /Launcher in terminal run 'chmod +x launcher.sh && ./launcher.sh <Configur
 
 # Features
 - 1.supports batch updates to handle TCP/IP connections overhead
-- 2.supports asynchrouns updates
+- 2.supports asynchronous updates
 
 # Contributors
 PJ Avinash
