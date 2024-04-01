@@ -21,7 +21,7 @@ updated_dir="${current_dir/\/Launcher}"
 echo ${updated_dir}
 
 
-# Compile the Java program in the parent directory
+# Compile the program in the parent directory
 cd ..
 make
 
