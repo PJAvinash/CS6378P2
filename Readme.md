@@ -1,4 +1,4 @@
-# Totally Ordered Broadcast Implementation
+# Distributed In Memory Key-Value store with Total Order Broadcast
 
 This project implements a centralized algorithm for achieving total order with a single master in a distributed system. The algorithm is used to create a Replicated In-Memory KeyValue Store. The primary goal is to ensure total ordering of data and enforce causal ordering in a distributed environment and enable high availability of data for local reads
 
@@ -35,12 +35,11 @@ On a cluster of nodes:
 go to /Launcher in terminal run 'chmod +x launcher.sh && ./launcher.sh <ConfigurationPath> <Numer of keys> ' For cleaning up processes 'chmod +x cleanup.sh && ./cleanup.sh <ConfigurationPath>'
 
 # Features
-1.supports batch updates to handle TCP/IP connections overhead
-2.supports asynchrouns updates
+- 1.supports batch updates to handle TCP/IP connections overhead
+- 2.supports asynchrouns updates
 
 # Contributors
 PJ Avinash
-
 
 
 
