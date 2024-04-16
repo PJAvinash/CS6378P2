@@ -17,12 +17,12 @@ This project implements a centralized algorithm for achieving total order with a
 
 
 # Future plans:
-Reduce the delivery latency
-Add support for different message types (CRUD) operations
-Add support for concurrent reads and writes with finegrained synchronization
-Add support for nodes leaving and joining the network
-Add support for node authentication
-Add support for backups 
+- Reduce the delivery latency
+- Add support for different message types (CRUD) operations
+- Add support for concurrent reads and writes with fine-grained synchronization
+- Add support for nodes leaving and joining the network
+- Add support for node authentication
+- Add support for backups 
 
 # Compilation:
 make 
